@@ -1,0 +1,30 @@
+# Secrets — NEVER commit
+.env
+.env.local
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# OS / editor junk
+.DS_Store
+__MACOSX/
+~$*
+.vscode/
+.idea/
+
+# Build / runtime
+dist/
+build/
+*.log
+.gradio/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
