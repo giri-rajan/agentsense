@@ -17,7 +17,7 @@ responsibly — including telling you when the honest answer is "don't use an ag
 · **Team:** The U-Team
 
 - 🔗 Live demo: https://agentsense.vercel.app
-- 🎥 **Demo video:** _<add YouTube/unlisted link>_
+- 🎥 Demo video: https://www.youtube.com/watch?v=9yp9BDeepPA
 
 ---
 
