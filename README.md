@@ -16,7 +16,7 @@ responsibly — including telling you when the honest answer is "don't use an ag
 **Hackathon:** Microsoft Build AI Hackathon 2026 · **Theme:** AI-Powered Production Function
 · **Team:** The U-Team
 
-- 🔗 **Live demo:** _<add your Azure App Service URL here>_ (no login required)
+- 🔗 Live demo: https://agentsense.vercel.app
 - 🎥 **Demo video:** _<add YouTube/unlisted link>_
 
 ---
@@ -89,7 +89,7 @@ React SPA  ──/api/v1──►  FastAPI  ──►  LangGraph Orchestrator
 
 ```bash
 # 1. Configure (optional — runs in mock mode without this)
-cp .env.example .env          # then fill in your Azure keys
+cp .env          # then fill in your Azure keys
 
 # 2. Backend deps
 pip install -r requirements.txt
