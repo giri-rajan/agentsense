@@ -70,21 +70,26 @@ class AzureServiceMapping(BaseModel):
 
 
 # ──────────────────────────────────────────────────────────────
-# Validation — the 5th agent. Guardrail / compliance check that
-# decides whether the blueprint can ship or needs human review.
+# Governance — the 5th agent. Replaces Validation with an Enterprise Governance
+# rule engine that produces a comprehensive risk and compliance assessment.
 # ──────────────────────────────────────────────────────────────
-class ValidationFinding(BaseModel):
-    check: str
+class GovernanceAssessment(BaseModel):
+    score: str = ""
     status: str = Field(..., description="pass, warn, or fail")
-    detail: str = ""
+    risk_level: str = Field(default="Low")
+    reason: str = ""
+    recommendation: str = ""
 
 
-class ValidationResult(BaseModel):
-    approved: bool = Field(default=False, description="Cleared for handoff without human review")
-    requires_human_review: bool = Field(default=True)
-    risk_level: str = Field(default="Medium", description="High, Medium, or Low")
-    findings: List[ValidationFinding] = Field(default_factory=list)
-    summary: str = ""
+class GovernanceResult(BaseModel):
+    decision: str = Field(..., description="AUTO_APPROVE, HUMAN_REVIEW_REQUIRED, or REJECT")
+    overall_risk: str = Field(default="Low")
+    overall_confidence: int = Field(default=0)
+    reason: str = ""
+    triggered_rules: List[str] = Field(default_factory=list)
+    assessments: Dict[str, GovernanceAssessment] = Field(default_factory=dict)
+    human_review_package: Optional[Dict[str, Any]] = None
+    rejection_package: Optional[Dict[str, Any]] = None
 
 
 class ROIEstimate(BaseModel):
@@ -129,11 +134,19 @@ class EnterpriseContext(BaseModel):
 # Portfolio — a scored workflow within a multi-workflow analysis,
 # so AgentSense can rank a whole transformation backlog.
 # ──────────────────────────────────────────────────────────────
+class TokenUsage(BaseModel):
+    total_tokens: int = 0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+
+
 class PortfolioEntry(BaseModel):
     workflow_name: str
     agent_score: int
     classification: str
     recommended_pattern: str
+    governance_decision: str = "PENDING"
+    governance_risk: str = "Unknown"
 
 
 class WorkflowState(BaseModel):
@@ -145,10 +158,11 @@ class WorkflowState(BaseModel):
     azure_mapping: Optional[Dict[str, Any]] = None
     retrieved_patterns: List[Dict[str, Any]] = Field(default_factory=list)
     architecture_recommendation: Optional[Dict[str, Any]] = None
-    validation: Optional[Dict[str, Any]] = None
+    governance: Optional[Dict[str, Any]] = None
     roi: Optional[Dict[str, Any]] = None
     blueprint: Optional[Dict[str, Any]] = None
     portfolio: List[PortfolioEntry] = Field(default_factory=list)
     trace: List[Dict[str, Any]] = Field(default_factory=list)
     guardrail_events: List[Dict[str, Any]] = Field(default_factory=list)
+    token_usage: Optional[TokenUsage] = None
     status: str = "init"

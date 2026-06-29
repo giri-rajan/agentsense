@@ -2,7 +2,29 @@ import time
 import logging
 from typing import TypedDict, Optional, Dict, Any, List
 
+from langchain_core.callbacks import BaseCallbackHandler
 from langgraph.graph import StateGraph, END
+
+class TokenCountingCallback(BaseCallbackHandler):
+    def __init__(self):
+        self.total_tokens = 0
+        self.prompt_tokens = 0
+        self.completion_tokens = 0
+
+    def on_llm_end(self, response, **kwargs):
+        for generation in response.generations:
+            for g in generation:
+                if hasattr(g, "message"):
+                    msg = g.message
+                    if hasattr(msg, "usage_metadata") and msg.usage_metadata:
+                        self.total_tokens += msg.usage_metadata.get("total_tokens", 0)
+                        self.prompt_tokens += msg.usage_metadata.get("input_tokens", 0)
+                        self.completion_tokens += msg.usage_metadata.get("output_tokens", 0)
+                    elif hasattr(msg, "response_metadata") and "token_usage" in msg.response_metadata:
+                        usage = msg.response_metadata["token_usage"]
+                        self.total_tokens += usage.get("total_tokens", 0)
+                        self.prompt_tokens += usage.get("prompt_tokens", 0)
+                        self.completion_tokens += usage.get("completion_tokens", 0)
 
 from app.utils.models import (
     WorkflowState, WorkflowIntelligence, AgentSuitabilityScore, EnterpriseContext,
@@ -11,7 +33,7 @@ from app.agents.diagnostic_agent import diagnostic_agent
 from app.agents.mapping_agent import mapping_agent
 from app.agents.recommendation_agent import recommendation_agent
 from app.agents.blueprint_agent import blueprint_agent
-from app.agents.validation_agent import validation_agent
+from app.agents.governance_agent import governance_agent
 from app.scoring.scoring_engine import scoring_engine
 from app.scoring.roi import estimate_roi
 from app.database.cosmos_client import db_client
@@ -28,7 +50,7 @@ class GraphState(TypedDict):
     azure_mapping: Optional[Dict[str, Any]]
     retrieved_patterns: List[Dict[str, Any]]
     recommendation: Optional[Dict[str, Any]]
-    validation: Optional[Dict[str, Any]]
+    governance: Optional[Dict[str, Any]]
     roi: Optional[Dict[str, Any]]
     blueprint: Optional[Dict[str, Any]]
     trace: List[Dict[str, Any]]
@@ -88,16 +110,16 @@ def generate_recommendations(state: GraphState) -> GraphState:
     return state
 
 
-def validate_design(state: GraphState) -> GraphState:
+def evaluate_governance(state: GraphState) -> GraphState:
     t = time.perf_counter()
-    logger.info("[5/7] Validation Agent → guardrail & HITL gate")
-    result = validation_agent.validate(
+    logger.info("[5/7] Governance Agent → enterprise compliance & risk rules")
+    result = governance_agent.evaluate(
         state["workflow_intelligence"], state["suitability_score"], state["recommendation"],
     )
-    state["validation"] = result.model_dump()
-    _trace(state, "Validation Agent", f"Risk {result.risk_level}; "
-           f"{'human review required' if result.requires_human_review else 'auto-approved'}; "
-           f"{len(result.findings)} checks.", t)
+    state["governance"] = result.model_dump()
+    _trace(state, "Governance Agent", f"Decision: {result.decision}; "
+           f"Risk {result.overall_risk}; "
+           f"{len(result.triggered_rules)} rules triggered.", t)
     return state
 
 
@@ -117,8 +139,8 @@ def create_blueprint(state: GraphState) -> GraphState:
     state["blueprint"] = blueprint_agent.generate_blueprint(
         state["suitability_score"], state["recommendation"],
     )
-    validation = state.get("validation") or {}
-    state["status"] = "awaiting_human_review" if validation.get("requires_human_review") else "completed"
+    gov = state.get("governance") or {}
+    state["status"] = "awaiting_human_review" if gov.get("decision") == "HUMAN_REVIEW_REQUIRED" else "completed"
     _trace(state, "Blueprint Agent", f"Blueprint generated; final status: {state['status']}.", t)
     return state
 
@@ -129,7 +151,7 @@ workflow.add_node("extract_intelligence", extract_intelligence)
 workflow.add_node("score_workflow", score_workflow)
 workflow.add_node("map_services", map_services)
 workflow.add_node("generate_recommendations", generate_recommendations)
-workflow.add_node("validate_design", validate_design)
+workflow.add_node("evaluate_governance", evaluate_governance)
 workflow.add_node("estimate_value", estimate_value)
 workflow.add_node("create_blueprint", create_blueprint)
 
@@ -137,8 +159,8 @@ workflow.set_entry_point("extract_intelligence")
 workflow.add_edge("extract_intelligence", "score_workflow")
 workflow.add_edge("score_workflow", "map_services")
 workflow.add_edge("map_services", "generate_recommendations")
-workflow.add_edge("generate_recommendations", "validate_design")
-workflow.add_edge("validate_design", "estimate_value")
+workflow.add_edge("generate_recommendations", "evaluate_governance")
+workflow.add_edge("evaluate_governance", "estimate_value")
 workflow.add_edge("estimate_value", "create_blueprint")
 workflow.add_edge("create_blueprint", END)
 
@@ -160,14 +182,20 @@ def run_orchestration(session_id: str) -> WorkflowState:
         "azure_mapping": None,
         "retrieved_patterns": [],
         "recommendation": None,
-        "validation": None,
+        "governance": None,
         "roi": None,
         "blueprint": None,
         "trace": [],
         "status": "processing",
     }
 
-    result = orchestrator_app.invoke(initial_state)
+    cb = TokenCountingCallback()
+    result = orchestrator_app.invoke(
+        initial_state,
+        config={"callbacks": [cb]}
+    )
+    
+    logger.info(f"Total tokens used for this run: {cb.total_tokens} (Prompt: {cb.prompt_tokens}, Completion: {cb.completion_tokens})")
 
     db_state.workflow_intelligence = result["workflow_intelligence"]
     db_state.suitability_score = result["suitability_score"]
@@ -178,11 +206,18 @@ def run_orchestration(session_id: str) -> WorkflowState:
         "strategy": result["recommendation"],
         "patterns": result["retrieved_patterns"],
     }
-    db_state.validation = result["validation"]
+    db_state.governance = result["governance"]
     db_state.roi = result["roi"]
     db_state.blueprint = result["blueprint"]
     db_state.trace = result["trace"]
     db_state.status = result["status"]
+    
+    from app.utils.models import TokenUsage
+    db_state.token_usage = TokenUsage(
+        total_tokens=cb.total_tokens,
+        prompt_tokens=cb.prompt_tokens,
+        completion_tokens=cb.completion_tokens
+    )
 
     db_client.save_workflow_state(db_state)
     return db_state

@@ -71,7 +71,7 @@ async def analyze_workflow(session_id: str):
             "status": s.status,
             "score": s.suitability_score.model_dump() if s.suitability_score else None,
             "recommendation": s.architecture_recommendation,
-            "validation": s.validation,
+            "governance": s.governance,
             "roi": s.roi,
             "patterns": s.retrieved_patterns,
             "trace": s.trace,
@@ -94,12 +94,14 @@ async def get_blueprint(session_id: str):
         res["workflow_intelligence"] = state.workflow_intelligence.model_dump()
     if state.architecture_recommendation:
         res["architecture_recommendation"] = state.architecture_recommendation
-    if state.validation:
-        res["validation"] = state.validation
+    if state.governance:
+        res["governance"] = state.governance
     if state.roi:
         res["roi"] = state.roi
     if state.retrieved_patterns:
         res["retrieved_patterns"] = state.retrieved_patterns
+    if state.token_usage:
+        res["token_usage"] = state.token_usage.model_dump() if hasattr(state.token_usage, "model_dump") else state.token_usage
     return res
 
 

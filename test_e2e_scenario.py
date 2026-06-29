@@ -64,11 +64,11 @@ def run_tests():
     print(f"   Score: {score['agent_score']}/100 ({score['classification']}), "
           f"autonomy={score['autonomy_level']}, hitl={score['requires_hitl']}")
     assert len(score["criteria"]) == 12, "expected 12 scoring criteria"
-    assert data["validation"]["requires_human_review"] is True, "high compliance must require human review"
+    assert data["governance"]["decision"] == "HUMAN_REVIEW_REQUIRED", "high compliance must require human review"
     assert len(data["patterns"]) > 0, "RAG should return grounded patterns"
     assert data["roi"]["cost_saved_per_year"] > 0, "ROI should be quantified"
     assert len(data["trace"]) == 7, "expected a 7-step agent trace"
-    print(f"   Validation risk: {data['validation']['risk_level']}; "
+    print(f"   Governance risk: {data['governance']['overall_risk']}; "
           f"ROI: ${data['roi']['cost_saved_per_year']:,}/yr ({data['roi']['roi_multiple']}x); "
           f"trace steps: {len(data['trace'])}")
 
@@ -78,13 +78,13 @@ def run_tests():
     bp = r.json()
     for key in ("architecture_doc", "mermaid_diagram", "cost_estimate", "roadmap", "code_scaffold"):
         assert key in bp, f"blueprint missing {key}"
-    assert "validation" in bp and "suitability_score" in bp
+    assert "governance" in bp and "suitability_score" in bp
 
     print("=== 6. Pattern retrieval endpoint ===")
     r = client.get("/api/v1/patterns", params={"q": "high compliance approval workflow", "k": 4})
     assert r.status_code == 200 and len(r.json()["results"]) > 0
 
-    print("\n[PASS] E2E scenario passed - 12-criteria scoring, RAG, validation gate, and blueprint all verified.")
+    print("\n[PASS] E2E scenario passed - 12-criteria scoring, RAG, governance gate, and blueprint all verified.")
 
 
 if __name__ == "__main__":

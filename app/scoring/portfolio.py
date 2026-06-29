@@ -10,6 +10,7 @@ from typing import List
 
 from app.utils.models import WorkflowIntelligence, PortfolioEntry
 from app.scoring.scoring_engine import scoring_engine
+from app.agents.governance_agent import governance_agent
 
 # A representative enterprise backlog. Real signals → real, comparable scores.
 SAMPLE_BACKLOG: List[WorkflowIntelligence] = [
@@ -51,11 +52,18 @@ def score_backlog(workflows: List[WorkflowIntelligence] | None = None) -> List[P
     entries = []
     for wf in workflows:
         s = scoring_engine.evaluate(wf)
+        
+        # Mock recommendation for portfolio planning governance checks
+        mock_recommendation = {"confidence": 0.85, "architecture_doc": "Standard Architecture"}
+        g = governance_agent.evaluate(wf, s, mock_recommendation)
+        
         entries.append(PortfolioEntry(
             workflow_name=wf.workflow_name,
             agent_score=s.agent_score,
             classification=s.classification,
             recommended_pattern=s.recommended_pattern,
+            governance_decision=g.decision,
+            governance_risk=g.overall_risk
         ))
     entries.sort(key=lambda e: e.agent_score, reverse=True)
     return entries

@@ -28,9 +28,19 @@ export default function Portfolio() {
           <div className="space-y-4">
             {rows.map((r) => (
               <div key={r.workflow_name}>
-                <div className="flex justify-between text-sm mb-1">
+                <div className="flex justify-between items-center text-sm mb-1">
                   <span className="font-bold text-slate-100">{r.workflow_name}</span>
-                  <span className="font-bold" style={{ color: classColor(r.classification) }}>{r.agent_score}/100 · {r.classification}</span>
+                  <div className="flex items-center gap-3">
+                    <div className="flex gap-1.5">
+                      <Pill tone={r.governance_decision === "REJECT" ? "red" : r.governance_decision === "HUMAN_REVIEW_REQUIRED" ? "amber" : "green"}>
+                        {r.governance_decision}
+                      </Pill>
+                      <Pill tone={r.governance_risk === "Critical" || r.governance_risk === "High" ? "red" : r.governance_risk === "Medium" ? "amber" : "green"}>
+                        {r.governance_risk} Risk
+                      </Pill>
+                    </div>
+                    <span className="font-bold" style={{ color: classColor(r.classification) }}>{r.agent_score}/100</span>
+                  </div>
                 </div>
                 <Bar pct={r.agent_score} color={classColor(r.classification)} />
                 <p className="text-[11px] text-slate-500 mt-1">→ {r.recommended_pattern}</p>

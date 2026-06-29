@@ -19,7 +19,7 @@ export default function Analyze({ sessionId, goNext }: any) {
   const score = data?.score;
   const strategy = data?.recommendation?.strategy || {};
   const roi = data?.roi;
-  const validation = data?.validation;
+  const governance = data?.governance;
   const patterns = data?.patterns || [];
   const trace = data?.trace || [];
 
@@ -108,22 +108,52 @@ export default function Analyze({ sessionId, goNext }: any) {
               </div>
             </Card>
 
-            <Card title="Governance · Validation Agent">
-              {validation && (
+            <Card title="Enterprise Governance Dashboard">
+              {governance && (
                 <>
                   <div className="flex items-center gap-2 mb-3">
-                    <Pill tone={validation.risk_level === "High" ? "red" : validation.risk_level === "Medium" ? "amber" : "green"}>Risk: {validation.risk_level}</Pill>
-                    <Pill tone={validation.requires_human_review ? "amber" : "green"}>
-                      {validation.requires_human_review ? "🔴 Human review required" : "🟢 Auto-approved"}
+                    <Pill tone={governance.overall_risk === "Critical" || governance.overall_risk === "High" ? "red" : governance.overall_risk === "Medium" ? "amber" : "green"}>Overall Risk: {governance.overall_risk}</Pill>
+                    <Pill tone={governance.decision === "REJECT" ? "red" : governance.decision === "HUMAN_REVIEW_REQUIRED" ? "amber" : "green"}>
+                      {governance.decision === "REJECT" ? "🔴 Rejected" : governance.decision === "HUMAN_REVIEW_REQUIRED" ? "🟡 Human review required" : "🟢 Auto-approved"}
                     </Pill>
                   </div>
-                  <ul className="space-y-1.5 text-xs">
-                    {validation.findings?.map((f: any, i: number) => (
-                      <li key={i} className="text-slate-300">
-                        {f.status === "pass" ? "✅" : f.status === "warn" ? "⚠️" : "❌"} <b>{f.check}</b> — {f.detail}
-                      </li>
-                    ))}
-                  </ul>
+                  
+                  {governance.reason && (
+                    <p className="text-xs text-slate-300 mb-4 bg-white/5 p-2 rounded">
+                      <b>Rationale:</b> {governance.reason}
+                    </p>
+                  )}
+
+                  {governance.triggered_rules && governance.triggered_rules.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-xs font-bold text-slate-400 mb-1">Triggered Policies:</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {governance.triggered_rules.map((rule: string) => (
+                          <span key={rule} className="text-[10px] bg-indigo-900/40 text-indigo-300 px-2 py-0.5 rounded border border-indigo-500/30 font-mono">
+                            {rule}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <details className="cursor-pointer group">
+                    <summary className="text-sm font-semibold text-violet-300 mb-2">Show 8-Module Assessment Detail</summary>
+                    <div className="space-y-3 mt-3 pt-3 border-t border-white/10">
+                      {Object.entries(governance.assessments || {}).map(([name, a]: [string, any]) => (
+                        <div key={name} className="text-xs bg-white/[0.02] p-2 rounded">
+                          <div className="flex justify-between items-start mb-1">
+                            <span className="font-bold text-slate-200">
+                              {a.status === "pass" ? "✅" : a.status === "warn" ? "⚠️" : "❌"} {name}
+                            </span>
+                            <span className="text-[10px] text-slate-500 uppercase">{a.risk_level} Risk</span>
+                          </div>
+                          <p className="text-slate-400 mt-0.5">{a.reason}</p>
+                          <p className="text-[10px] text-violet-300/80 mt-1">↳ {a.recommendation}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
                 </>
               )}
             </Card>

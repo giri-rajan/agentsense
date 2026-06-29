@@ -44,6 +44,12 @@ ${bp.mermaid_diagram || ""}
 ## Cost Estimate
 ${bp.cost_estimate || ""}
 
+## Enterprise Governance
+**Decision**: ${bp.governance?.decision || "N/A"}
+**Overall Risk**: ${bp.governance?.overall_risk || "N/A"}
+${bp.governance?.decision === "REJECT" ? `**Rejection Alternative**: ${bp.governance.rejection_package?.alternative || "N/A"}` : ""}
+*Reasoning*: ${bp.governance?.reason || "N/A"}
+
 ## Roadmap
 ${bp.roadmap || ""}
 
@@ -78,8 +84,44 @@ ${bp.code_scaffold || ""}
 
       {bp && (
         <>
+          {bp.token_usage && (
+            <div className="flex gap-4">
+              <div className="flex-1 bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 border border-violet-500/30 rounded-xl p-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-violet-200">Total Tokens Consumed</h3>
+                  <p className="text-xs text-violet-300/70 mt-1">Across all 7 LangGraph agents</p>
+                </div>
+                <div className="text-right">
+                  <span className="text-3xl font-extrabold text-white">{bp.token_usage.total_tokens.toLocaleString()}</span>
+                  <div className="text-xs text-violet-200 mt-1 space-x-2">
+                    <span>Prompt: {bp.token_usage.prompt_tokens.toLocaleString()}</span>
+                    <span className="opacity-50">|</span>
+                    <span>Completion: {bp.token_usage.completion_tokens.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           <ArchitectureDiagram bp={bp} />
           <Card title="Architecture Document"><Markdown>{bp.architecture_doc || ""}</Markdown></Card>
+          
+          {bp.governance && (
+            <Card title="Enterprise Governance Decision">
+              <div className="bg-white/[0.03] p-4 rounded-xl border border-white/10 mb-4">
+                <div className="flex gap-2 items-center mb-2">
+                  <span className="font-bold text-lg text-slate-200">
+                    {bp.governance.decision === "REJECT" ? "🔴 REJECTED" : bp.governance.decision === "HUMAN_REVIEW_REQUIRED" ? "🟡 HUMAN REVIEW REQUIRED" : "🟢 AUTO APPROVED"}
+                  </span>
+                  <span className="text-xs text-slate-500 uppercase px-2 py-1 bg-black/40 rounded">Risk: {bp.governance.overall_risk}</span>
+                </div>
+                <p className="text-sm text-slate-300">{bp.governance.reason}</p>
+                {bp.governance.decision === "REJECT" && bp.governance.rejection_package && (
+                   <p className="text-sm text-rose-300 mt-2"><b>Alternative:</b> {bp.governance.rejection_package.alternative}</p>
+                )}
+              </div>
+            </Card>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <Card title="Cost Estimate"><Markdown>{bp.cost_estimate || ""}</Markdown></Card>
             <Card title="Roadmap"><Markdown>{bp.roadmap || ""}</Markdown></Card>
