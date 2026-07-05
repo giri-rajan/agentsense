@@ -1,4 +1,4 @@
-# AgentSense
+# AgentSense - The Agent for All your Agentic Needs.
 
 > **The agent that tells you where agents belong.**
 
